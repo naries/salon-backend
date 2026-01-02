@@ -22,7 +22,9 @@ app.add_middleware(
         "http://127.0.0.1:3001",
         "http://127.0.0.1:3002",
         # Test environments
+        "http://test.salons.nxva-hubb.com",
         "https://test.salons.nxva-hubb.com",
+        "http://test.backoffice.salons.nxva-hubb.com",
         "https://test.backoffice.salons.nxva-hubb.com",
     ],
     allow_credentials=True,
