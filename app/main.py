@@ -16,11 +16,14 @@ app.add_middleware(
     CORSMiddleware,
     allow_origins=[
         "http://localhost:3000",
-        "http://localhost:3001", 
+        "http://localhost:3001",
         "http://localhost:3002",
         "http://127.0.0.1:3000",
         "http://127.0.0.1:3001",
-        "http://127.0.0.1:3002"
+        "http://127.0.0.1:3002",
+        # Test environments
+        "https://test.salons.nxva-hubb.com",
+        "https://test.backoffice.salons.nxva-hubb.com",
     ],
     allow_credentials=True,
     allow_methods=["*"],
