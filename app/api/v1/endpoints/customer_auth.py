@@ -137,6 +137,13 @@ def register_platform_customer(
     db.commit()
     db.refresh(db_customer)
     
+    # Check if customer has UUID (should be auto-generated)
+    if not db_customer.uuid:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Failed to generate customer UUID. Check database configuration."
+        )
+    
     # Create access token for immediate login with UUID
     access_token = create_access_token(
         data={
@@ -171,6 +178,13 @@ def login_customer(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Incorrect email or password",
             headers={"WWW-Authenticate": "Bearer"},
+        )
+    
+    # Check if customer has UUID (required after migration 028)
+    if not hasattr(customer, 'uuid') or customer.uuid is None:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Database migration required. Please run: alembic upgrade head"
         )
     
     # Create access token with UUID as subject - salon_id may be None for platform customers
