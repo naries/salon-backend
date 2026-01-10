@@ -629,7 +629,7 @@ def get_chat_detail(chat: Chat, participant_id: int, participant_type: str, db: 
                 unread_count=p.unread_count,
                 is_muted=p.is_muted,
                 last_read_at=p.last_read_at,
-                phone=p.customer.phone_number
+                phone=p.customer.phone
             ))
     
     # Get message count
@@ -686,7 +686,7 @@ def format_chat_list_item(chat: Chat, participant_id: int, participant_type: str
                 joined_at=p.joined_at,
                 is_active=p.is_active,
                 unread_count=p.unread_count,
-                phone=p.customer.phone_number
+                phone=p.customer.phone
             ))
     
     # Get online participants
@@ -718,7 +718,7 @@ def format_message_response(message: ChatMessage, db: Session) -> MessageRespons
     if message.sender_type == ParticipantType.USER and message.sender_user:
         sender_name = message.sender_user.email
     elif message.sender_type == ParticipantType.CUSTOMER and message.sender_customer:
-        sender_name = message.sender_customer.phone_number
+        sender_name = message.sender_customer.phone
     
     # Get read receipts
     read_receipts = db.query(ChatMessageRead).filter(

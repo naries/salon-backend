@@ -320,7 +320,7 @@ async def handle_send_message(
         sender_name = sender.email if sender else "Unknown"
     else:
         sender = db.query(Customer).filter(Customer.id == participant_id).first()
-        sender_name = sender.phone_number if sender else "Unknown"
+        sender_name = sender.phone if sender else "Unknown"
     
     # Broadcast message via WebSocket
     await chat_manager.send_message(

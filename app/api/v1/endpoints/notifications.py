@@ -693,7 +693,7 @@ async def get_customer_from_token(token: str, db: Session) -> Customer:
     except JWTError:
         raise credentials_exception
     
-    customer = db.query(Customer).filter(Customer.phone_number == phone).first()
+    customer = db.query(Customer).filter(Customer.phone == phone).first()
     if customer is None:
         raise credentials_exception
     
