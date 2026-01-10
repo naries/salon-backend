@@ -53,7 +53,7 @@ async def get_customer_from_token(token: str, db: Session) -> Optional[Customer]
     except JWTError:
         return None
     
-    return db.query(Customer).filter(Customer.phone_number == phone).first()
+    return db.query(Customer).filter(Customer.phone == phone).first()
 
 
 @router.websocket("/ws/chat/user")
