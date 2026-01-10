@@ -123,6 +123,16 @@ Authorization: Bearer YOUR_JWT_TOKEN
 Content-Type: application/json
 
 {
+  "salon_id": 10,
+  "title": "Booking Inquiry",
+  "initial_message": "I'd like to book an appointment"
+}
+```
+
+**Or with specific user:**
+```http
+{
+  "salon_id": 10,
   "user_id": 456,
   "title": "Booking Inquiry",
   "initial_message": "I'd like to book an appointment"

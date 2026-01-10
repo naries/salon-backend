@@ -1,6 +1,7 @@
 from sqlalchemy import Column, Integer, String, DateTime, ForeignKey, Text, Float, Time, UniqueConstraint
 from sqlalchemy.orm import relationship
 from datetime import datetime, time
+from uuid import uuid4
 from app.core.database import Base
 
 
@@ -346,6 +347,7 @@ class Customer(Base):
     __tablename__ = "customers"
 
     id = Column(Integer, primary_key=True, index=True)
+    uuid = Column(String(36), unique=True, nullable=False, index=True, default=lambda: str(uuid4()))  # UUID for secure identification
     # Legacy field - kept for backward compatibility, will be deprecated
     salon_id = Column(Integer, ForeignKey("salons.id"), nullable=True)
     

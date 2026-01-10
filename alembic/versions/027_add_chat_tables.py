@@ -19,7 +19,7 @@ from sqlalchemy.dialects import postgresql
 
 # revision identifiers
 revision = '027_add_chat_tables'
-down_revision = '026_add_faq_and_support_messages'
+down_revision = '026'  # Fixed: was '026_add_faq_and_support_messages'
 branch_labels = None
 depends_on = None
 

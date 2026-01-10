@@ -137,10 +137,10 @@ def register_platform_customer(
     db.commit()
     db.refresh(db_customer)
     
-    # Create access token for immediate login
+    # Create access token for immediate login with UUID
     access_token = create_access_token(
         data={
-            "sub": db_customer.email,
+            "sub": db_customer.uuid,  # Use UUID instead of email
             "customer_id": db_customer.id,
             "salon_id": None,
             "type": "customer"
@@ -173,10 +173,10 @@ def login_customer(
             headers={"WWW-Authenticate": "Bearer"},
         )
     
-    # Create access token - salon_id may be None for platform customers
+    # Create access token with UUID as subject - salon_id may be None for platform customers
     access_token = create_access_token(
         data={
-            "sub": customer.email,
+            "sub": customer.uuid,  # Use UUID instead of email for better security
             "customer_id": customer.id,
             "salon_id": customer.salon_id,  # May be None for platform customers
             "type": "customer"  # Identify this as a customer token

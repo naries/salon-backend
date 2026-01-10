@@ -140,18 +140,18 @@ async def get_current_customer(
     try:
         payload = jwt.decode(token, settings.SECRET_KEY, algorithms=[settings.ALGORITHM])
         customer_id: int = payload.get("customer_id")
-        email: str = payload.get("sub")
-        logger.info(f"Token decoded - customer_id: {customer_id}, email: {email}")
-        if email is None or customer_id is None:
-            logger.warning("Missing email or customer_id in token payload")
+        uuid_str: str = payload.get("sub")  # UUID is now in the "sub" claim
+        logger.info(f"Token decoded - customer_id: {customer_id}, uuid: {uuid_str}")
+        if uuid_str is None or customer_id is None:
+            logger.warning("Missing uuid or customer_id in token payload")
             raise credentials_exception
     except JWTError as e:
         logger.error(f"JWT decode error: {e}")
         raise credentials_exception
     
-    customer = db.query(Customer).filter(Customer.id == customer_id, Customer.email == email).first()
+    customer = db.query(Customer).filter(Customer.id == customer_id, Customer.uuid == uuid_str).first()
     if customer is None:
-        logger.warning(f"Customer not found in database: id={customer_id}, email={email}")
+        logger.warning(f"Customer not found in database: id={customer_id}, uuid={uuid_str}")
         raise credentials_exception
     
     logger.info(f"Customer authenticated successfully: {customer.email}")
@@ -179,15 +179,15 @@ async def get_current_customer_optional(
     try:
         payload = jwt.decode(token, settings.SECRET_KEY, algorithms=[settings.ALGORITHM])
         customer_id: int = payload.get("customer_id")
-        email: str = payload.get("sub")
+        uuid_str: str = payload.get("sub")  # UUID is now in "sub" claim
         token_type: str = payload.get("type")
         
         # Verify this is a customer token
-        if token_type != "customer" or email is None or customer_id is None:
+        if token_type != "customer" or uuid_str is None or customer_id is None:
             return None
             
     except JWTError:
         return None
     
-    customer = db.query(Customer).filter(Customer.id == customer_id, Customer.email == email).first()
+    customer = db.query(Customer).filter(Customer.id == customer_id, Customer.uuid == uuid_str).first()
     return customer
