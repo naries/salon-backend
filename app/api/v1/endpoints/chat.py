@@ -14,7 +14,6 @@ import json
 from app.core.database import get_db
 from app.core.security import get_current_admin_user, get_current_customer
 from app.core.chat_manager import chat_manager
-from app.core.storage import upload_file_to_storage  # You'll need to implement this
 from app.models.models import User, Customer, Salon
 from app.models.chat_models import (
     Chat, ChatParticipant, ChatMessage, ChatMessageRead, ChatAttachment,
