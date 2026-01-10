@@ -1,0 +1,512 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SSE Notification Test Client</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+
+        .header {
+            background: white;
+            padding: 30px;
+            border-radius: 10px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            margin-bottom: 20px;
+        }
+
+        h1 {
+            color: #333;
+            margin-bottom: 10px;
+        }
+
+        .subtitle {
+            color: #666;
+            font-size: 14px;
+        }
+
+        .controls {
+            background: white;
+            padding: 20px;
+            border-radius: 10px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            margin-bottom: 20px;
+        }
+
+        .form-group {
+            margin-bottom: 15px;
+        }
+
+        label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: 600;
+            color: #333;
+        }
+
+        input, select {
+            width: 100%;
+            padding: 10px;
+            border: 2px solid #e0e0e0;
+            border-radius: 5px;
+            font-size: 14px;
+            transition: border-color 0.3s;
+        }
+
+        input:focus, select:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+
+        .button-group {
+            display: flex;
+            gap: 10px;
+            margin-top: 15px;
+        }
+
+        button {
+            flex: 1;
+            padding: 12px 20px;
+            border: none;
+            border-radius: 5px;
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+
+        .btn-connect {
+            background: #10b981;
+            color: white;
+        }
+
+        .btn-connect:hover {
+            background: #059669;
+        }
+
+        .btn-disconnect {
+            background: #ef4444;
+            color: white;
+        }
+
+        .btn-disconnect:hover {
+            background: #dc2626;
+        }
+
+        .btn-clear {
+            background: #6b7280;
+            color: white;
+        }
+
+        .btn-clear:hover {
+            background: #4b5563;
+        }
+
+        button:disabled {
+            background: #d1d5db;
+            cursor: not-allowed;
+        }
+
+        .status {
+            padding: 15px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            font-weight: 600;
+            text-align: center;
+        }
+
+        .status.disconnected {
+            background: #fee2e2;
+            color: #991b1b;
+        }
+
+        .status.connected {
+            background: #d1fae5;
+            color: #065f46;
+        }
+
+        .status.connecting {
+            background: #fef3c7;
+            color: #92400e;
+        }
+
+        .notifications {
+            background: white;
+            padding: 20px;
+            border-radius: 10px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            min-height: 400px;
+            max-height: 600px;
+            overflow-y: auto;
+        }
+
+        .notifications h2 {
+            margin-bottom: 15px;
+            color: #333;
+        }
+
+        .notification {
+            padding: 15px;
+            border-radius: 8px;
+            margin-bottom: 10px;
+            animation: slideIn 0.3s ease;
+        }
+
+        @keyframes slideIn {
+            from {
+                opacity: 0;
+                transform: translateY(-10px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .notification.connected {
+            background: #dbeafe;
+            border-left: 4px solid #3b82f6;
+        }
+
+        .notification.notification-event {
+            background: #fef3c7;
+            border-left: 4px solid #f59e0b;
+        }
+
+        .notification.ping {
+            background: #f3f4f6;
+            border-left: 4px solid #9ca3af;
+        }
+
+        .notification .time {
+            font-size: 12px;
+            color: #6b7280;
+            margin-bottom: 5px;
+        }
+
+        .notification .title {
+            font-weight: 600;
+            margin-bottom: 5px;
+            color: #111827;
+        }
+
+        .notification .message {
+            color: #374151;
+            font-size: 14px;
+        }
+
+        .notification .details {
+            margin-top: 8px;
+            padding-top: 8px;
+            border-top: 1px solid rgba(0, 0, 0, 0.1);
+            font-size: 12px;
+            color: #6b7280;
+        }
+
+        .empty-state {
+            text-align: center;
+            color: #9ca3af;
+            padding: 40px;
+        }
+
+        .empty-state svg {
+            width: 64px;
+            height: 64px;
+            margin-bottom: 10px;
+            opacity: 0.5;
+        }
+
+        .stats {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 15px;
+            margin-top: 20px;
+        }
+
+        .stat-card {
+            background: #f9fafb;
+            padding: 15px;
+            border-radius: 8px;
+            border: 2px solid #e5e7eb;
+        }
+
+        .stat-card .label {
+            font-size: 12px;
+            color: #6b7280;
+            margin-bottom: 5px;
+        }
+
+        .stat-card .value {
+            font-size: 24px;
+            font-weight: 700;
+            color: #111827;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🔔 SSE Notification Test Client</h1>
+            <p class="subtitle">Real-time Server-Sent Events notification testing tool</p>
+        </div>
+
+        <div class="controls">
+            <div class="form-group">
+                <label for="userType">User Type:</label>
+                <select id="userType">
+                    <option value="admin">Salon Admin</option>
+                    <option value="customer">Customer</option>
+                </select>
+            </div>
+
+            <div class="form-group">
+                <label for="token">Authorization Token (JWT):</label>
+                <input type="password" id="token" placeholder="Paste your JWT token here">
+            </div>
+
+            <div class="form-group" id="salonIdGroup" style="display: none;">
+                <label for="salonId">Salon ID (optional for customers):</label>
+                <input type="number" id="salonId" placeholder="Leave empty to receive from all salons">
+            </div>
+
+            <div class="form-group">
+                <label for="apiUrl">API URL:</label>
+                <input type="text" id="apiUrl" value="http://localhost:8000">
+            </div>
+
+            <div class="button-group">
+                <button class="btn-connect" id="connectBtn">Connect</button>
+                <button class="btn-disconnect" id="disconnectBtn" disabled>Disconnect</button>
+                <button class="btn-clear" id="clearBtn">Clear Notifications</button>
+            </div>
+
+            <div class="stats">
+                <div class="stat-card">
+                    <div class="label">Total Received</div>
+                    <div class="value" id="totalCount">0</div>
+                </div>
+                <div class="stat-card">
+                    <div class="label">Notifications</div>
+                    <div class="value" id="notifCount">0</div>
+                </div>
+                <div class="stat-card">
+                    <div class="label">Pings</div>
+                    <div class="value" id="pingCount">0</div>
+                </div>
+            </div>
+        </div>
+
+        <div id="status" class="status disconnected">
+            ⚠️ Disconnected
+        </div>
+
+        <div class="notifications">
+            <h2>📨 Notifications</h2>
+            <div id="notificationList">
+                <div class="empty-state">
+                    <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9"></path>
+                    </svg>
+                    <p>No notifications yet. Connect to start receiving.</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let eventSource = null;
+        let notificationCount = 0;
+        let pingCount = 0;
+        let totalCount = 0;
+
+        const userTypeSelect = document.getElementById('userType');
+        const tokenInput = document.getElementById('token');
+        const salonIdInput = document.getElementById('salonId');
+        const salonIdGroup = document.getElementById('salonIdGroup');
+        const apiUrlInput = document.getElementById('apiUrl');
+        const connectBtn = document.getElementById('connectBtn');
+        const disconnectBtn = document.getElementById('disconnectBtn');
+        const clearBtn = document.getElementById('clearBtn');
+        const statusDiv = document.getElementById('status');
+        const notificationList = document.getElementById('notificationList');
+
+        // Show/hide salon ID input based on user type
+        userTypeSelect.addEventListener('change', (e) => {
+            salonIdGroup.style.display = e.target.value === 'customer' ? 'block' : 'none';
+        });
+
+        // Connect to SSE stream
+        connectBtn.addEventListener('click', () => {
+            const token = tokenInput.value.trim();
+            if (!token) {
+                alert('Please enter an authorization token');
+                return;
+            }
+
+            const apiUrl = apiUrlInput.value.trim();
+            const userType = userTypeSelect.value;
+            let endpoint = userType === 'admin' 
+                ? `${apiUrl}/api/v1/notifications/stream`
+                : `${apiUrl}/api/v1/notifications/customer/stream`;
+
+            // Add token as query parameter for EventSource compatibility
+            endpoint += `?token=${encodeURIComponent(token)}`;
+
+            // Add salon_id for customers if provided
+            if (userType === 'customer' && salonIdInput.value) {
+                endpoint += `&salon_id=${salonIdInput.value}`;
+            }
+
+            setStatus('connecting', '🔄 Connecting...');
+            connectBtn.disabled = true;
+
+            try {
+                eventSource = new EventSource(endpoint);
+
+                eventSource.addEventListener('connected', (event) => {
+                    const data = JSON.parse(event.data);
+                    addNotification('connected', 'Connected', data.message, data);
+                    setStatus('connected', '✅ Connected');
+                    disconnectBtn.disabled = false;
+                });
+
+                eventSource.addEventListener('notification', (event) => {
+                    const notification = JSON.parse(event.data);
+                    addNotification('notification-event', notification.title, notification.message, notification);
+                    notificationCount++;
+                    updateStats();
+                    
+                    // Show browser notification if permitted
+                    if (Notification.permission === 'granted') {
+                        new Notification(notification.title, {
+                            body: notification.message,
+                            icon: '/favicon.ico'
+                        });
+                    }
+                });
+
+                eventSource.addEventListener('ping', (event) => {
+                    const data = JSON.parse(event.data);
+                    addNotification('ping', 'Keepalive', `Ping received at ${data.timestamp}`, null, true);
+                    pingCount++;
+                    updateStats();
+                });
+
+                eventSource.onerror = (error) => {
+                    console.error('SSE Error:', error);
+                    setStatus('disconnected', '❌ Connection Error');
+                    connectBtn.disabled = false;
+                    disconnectBtn.disabled = true;
+                };
+
+            } catch (error) {
+                console.error('Failed to connect:', error);
+                alert(`Connection failed: ${error.message}`);
+                setStatus('disconnected', '❌ Failed to connect');
+                connectBtn.disabled = false;
+            }
+        });
+
+        // Disconnect
+        disconnectBtn.addEventListener('click', () => {
+            if (eventSource) {
+                eventSource.close();
+                eventSource = null;
+                setStatus('disconnected', '⚠️ Disconnected');
+                connectBtn.disabled = false;
+                disconnectBtn.disabled = true;
+            }
+        });
+
+        // Clear notifications
+        clearBtn.addEventListener('click', () => {
+            notificationList.innerHTML = `
+                <div class="empty-state">
+                    <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9"></path>
+                    </svg>
+                    <p>No notifications yet. Connect to start receiving.</p>
+                </div>
+            `;
+            notificationCount = 0;
+            pingCount = 0;
+            totalCount = 0;
+            updateStats();
+        });
+
+        function setStatus(status, message) {
+            statusDiv.className = `status ${status}`;
+            statusDiv.textContent = message;
+        }
+
+        function addNotification(type, title, message, details = null, skipTotal = false) {
+            // Remove empty state if present
+            const emptyState = notificationList.querySelector('.empty-state');
+            if (emptyState) {
+                emptyState.remove();
+            }
+
+            const notification = document.createElement('div');
+            notification.className = `notification ${type}`;
+            
+            const time = new Date().toLocaleTimeString();
+            let html = `
+                <div class="time">${time}</div>
+                <div class="title">${title}</div>
+                <div class="message">${message}</div>
+            `;
+
+            if (details && type === 'notification-event') {
+                html += `
+                    <div class="details">
+                        <strong>Type:</strong> ${details.notification_type}<br>
+                        <strong>Recipient:</strong> ${details.recipient_type} #${details.recipient_id}<br>
+                        <strong>Salon:</strong> ${details.salon_id || 'N/A'}
+                        ${details.entity_type ? `<br><strong>Entity:</strong> ${details.entity_type} #${details.entity_id}` : ''}
+                    </div>
+                `;
+            }
+
+            notification.innerHTML = html;
+            notificationList.insertBefore(notification, notificationList.firstChild);
+
+            if (!skipTotal) {
+                totalCount++;
+                updateStats();
+            }
+        }
+
+        function updateStats() {
+            document.getElementById('totalCount').textContent = totalCount;
+            document.getElementById('notifCount').textContent = notificationCount;
+            document.getElementById('pingCount').textContent = pingCount;
+        }
+
+        // Request notification permission on load
+        if ('Notification' in window && Notification.permission === 'default') {
+            Notification.requestPermission();
+        }
+
+        // Log usage info
+        console.log('%c✅ SSE Test Client Ready', 'color: #10b981; font-weight: bold; font-size: 14px;');
+        console.log('Token is passed as query parameter for EventSource compatibility.');
+        console.log('Example: /api/v1/notifications/stream?token=YOUR_JWT_TOKEN');
+    </script>
+</body>
+</html>

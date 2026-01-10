@@ -1,10 +1,12 @@
 from fastapi import APIRouter
-from app.api.v1.endpoints import appointments, customers, services, auth, plans, service_templates, salons, sub_services, users, files, customization, subscriptions, dashboard, superadmin, superadmin_settings, activity_logs, products, product_categories, cart, orders, customer_auth, packs, wallet, withdrawals, support, complaints, reviews, market, special_requests, showroom, notifications, media, favorites, faq, customer_support
+from app.api.v1.endpoints import appointments, customers, services, auth, plans, service_templates, salons, sub_services, users, files, customization, subscriptions, dashboard, superadmin, superadmin_settings, activity_logs, products, product_categories, cart, orders, customer_auth, packs, wallet, withdrawals, support, complaints, reviews, market, special_requests, showroom, notifications, media, favorites, faq, customer_support, chat, chat_websocket
 
 api_router = APIRouter()
 
 api_router.include_router(auth.router, prefix="/auth", tags=["authentication"])
 api_router.include_router(customer_auth.router, prefix="/customer-auth", tags=["customer-authentication"])
+api_router.include_router(chat.router, prefix="/chat", tags=["chat"])
+api_router.include_router(chat_websocket.router, prefix="/chat", tags=["chat-websocket"])
 api_router.include_router(favorites.router, prefix="/favorites", tags=["favorites"])
 api_router.include_router(market.router, prefix="/market", tags=["market"])
 api_router.include_router(showroom.router, prefix="/showroom", tags=["showroom"])

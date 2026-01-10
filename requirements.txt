@@ -12,6 +12,14 @@ bcrypt==4.0.1
 python-multipart==0.0.6
 cloudinary==1.41.0
 pywebpush==1.14.1
+sse-starlette==1.6.5
 
 # MySQL driver for SQLAlchemy
 pymysql==1.0.3
+
+# Testing dependencies
+pytest==7.4.3
+pytest-asyncio==0.21.1
+pytest-cov==4.1.0
+httpx==0.25.2
+faker==22.0.0

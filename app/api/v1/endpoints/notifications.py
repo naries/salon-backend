@@ -14,9 +14,11 @@ from sqlalchemy import or_, desc
 from typing import List, Optional
 from datetime import datetime
 import os
+from sse_starlette.sse import EventSourceResponse
 
 from app.core.database import get_db
 from app.core.security import get_current_admin_user, get_current_customer
+from app.core.notification_manager import notification_manager
 from app.models.models import (
     Notification, PushSubscription, NotificationPreference, User, Customer,
     MobileDeviceToken
@@ -640,4 +642,196 @@ async def unregister_mobile_device_customer(
         db.commit()
     
     return {"message": "Device unregistered successfully"}
+
+
+# ==================== SSE REAL-TIME NOTIFICATIONS ====================
+
+async def get_user_from_token(token: str, db: Session) -> User:
+    """Validate JWT token and return user (for SSE where headers aren't easily accessible)"""
+    from jose import JWTError, jwt
+    from app.core.config import settings
+    from fastapi import HTTPException, status
+    
+    credentials_exception = HTTPException(
+        status_code=status.HTTP_401_UNAUTHORIZED,
+        detail="Could not validate credentials",
+        headers={"WWW-Authenticate": "Bearer"},
+    )
+    
+    try:
+        payload = jwt.decode(token, settings.SECRET_KEY, algorithms=[settings.ALGORITHM])
+        email: str = payload.get("sub")
+        if email is None:
+            raise credentials_exception
+    except JWTError:
+        raise credentials_exception
+    
+    user = db.query(User).filter(User.email == email).first()
+    if user is None:
+        raise credentials_exception
+    
+    return user
+
+
+async def get_customer_from_token(token: str, db: Session) -> Customer:
+    """Validate JWT token and return customer (for SSE)"""
+    from jose import JWTError, jwt
+    from app.core.config import settings
+    from fastapi import HTTPException, status
+    
+    credentials_exception = HTTPException(
+        status_code=status.HTTP_401_UNAUTHORIZED,
+        detail="Could not validate credentials",
+        headers={"WWW-Authenticate": "Bearer"},
+    )
+    
+    try:
+        payload = jwt.decode(token, settings.SECRET_KEY, algorithms=[settings.ALGORITHM])
+        phone: str = payload.get("sub")
+        if phone is None:
+            raise credentials_exception
+    except JWTError:
+        raise credentials_exception
+    
+    customer = db.query(Customer).filter(Customer.phone_number == phone).first()
+    if customer is None:
+        raise credentials_exception
+    
+    return customer
+
+
+@router.get("/stream")
+async def notification_stream_admin(
+    request: Request,
+    token: Optional[str] = Query(None, description="JWT token (use if Authorization header not available)"),
+    db: Session = Depends(get_db),
+    current_user: Optional[User] = Depends(get_current_admin_user)
+):
+    """
+    Server-Sent Events (SSE) stream for real-time notifications.
+    Salon admins receive notifications specific to their salon.
+    
+    Authentication:
+    - Preferred: Authorization header (Bearer token)
+    - Alternative: token query parameter (for EventSource compatibility)
+    
+    Connect to this endpoint to receive real-time notifications:
+    - Event 'connected': Connection confirmation
+    - Event 'notification': New notification data
+    - Event 'ping': Keepalive message every 30 seconds
+    
+    Usage with custom SSE client (supports headers):
+    ```javascript
+    const response = await fetch('/api/v1/notifications/stream', {
+        headers: { 'Authorization': 'Bearer YOUR_TOKEN' }
+    });
+    const reader = response.body.getReader();
+    // Process SSE stream
+    ```
+    
+    Usage with EventSource (query parameter):
+    ```javascript
+    const eventSource = new EventSource('/api/v1/notifications/stream?token=YOUR_TOKEN');
+    
+    eventSource.addEventListener('notification', (event) => {
+        const notification = JSON.parse(event.data);
+        console.log('New notification:', notification);
+    });
+    ```
+    """
+    # If no user from header, try query parameter
+    if not current_user and token:
+        current_user = await get_user_from_token(token, db)
+    
+    if not current_user:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Authentication required"
+        )
+    
+    if not current_user.salon_id:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="User is not associated with a salon"
+        )
+    
+    # Create async generator for this admin
+    async def event_generator():
+        async for event in notification_manager.admin_event_stream(
+            salon_id=current_user.salon_id,
+            user_id=current_user.id
+        ):
+            yield event
+    
+    return EventSourceResponse(event_generator())
+
+
+@router.get("/customer/stream")
+async def notification_stream_customer(
+    request: Request,
+    token: Optional[str] = Query(None, description="JWT token (use if Authorization header not available)"),
+    salon_id: Optional[int] = Query(None, description="Filter notifications for specific salon"),
+    db: Session = Depends(get_db),
+    current_customer: Optional[Customer] = Depends(get_current_customer)
+):
+    """
+    Server-Sent Events (SSE) stream for customer real-time notifications.
+    Customers receive their notifications, optionally filtered by salon.
+    
+    Authentication:
+    - Preferred: Authorization header (Bearer token)
+    - Alternative: token query parameter (for EventSource compatibility)
+    
+    Connect to this endpoint to receive real-time notifications:
+    - Event 'connected': Connection confirmation
+    - Event 'notification': New notification data
+    - Event 'ping': Keepalive message every 30 seconds
+    
+    Usage with EventSource:
+    ```javascript
+    const eventSource = new EventSource('/api/v1/notifications/customer/stream?token=YOUR_TOKEN');
+    
+    eventSource.addEventListener('notification', (event) => {
+        const notification = JSON.parse(event.data);
+        console.log('New notification:', notification);
+    });
+    ```
+    """
+    # If no customer from header, try query parameter
+    if not current_customer and token:
+        current_customer = await get_customer_from_token(token, db)
+    
+    if not current_customer:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Authentication required"
+        )
+    
+    # Create async generator for this customer
+    async def event_generator():
+        async for event in notification_manager.customer_event_stream(
+            customer_id=current_customer.id,
+            salon_id=salon_id
+        ):
+            yield event
+    
+    return EventSourceResponse(event_generator())
+
+
+@router.get("/stream/stats")
+async def get_stream_stats(
+    current_user: User = Depends(get_current_admin_user)
+):
+    """
+    Get statistics about active SSE connections.
+    Superadmin only endpoint for monitoring.
+    """
+    if current_user.role != "superadmin":
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Only superadmin can view connection stats"
+        )
+    
+    return notification_manager.get_stats()
+
 

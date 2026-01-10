@@ -210,8 +210,10 @@ class NotificationService:
         channels_sent: List[str] = None,
         extra_data: dict = None
     ):
-        """Save notification to database for history/in-app display"""
+        """Save notification to database for history/in-app display and push to SSE"""
         from app.models.models import Notification
+        from app.core.notification_manager import notification_manager
+        import asyncio
         
         notification = Notification(
             notification_type=notification_type,
@@ -228,6 +230,46 @@ class NotificationService:
         
         self.db.add(notification)
         self.db.commit()
+        self.db.refresh(notification)
+        
+        # Push notification to SSE connections
+        notification_data = {
+            "id": notification.id,
+            "notification_type": notification.notification_type,
+            "title": notification.title,
+            "message": notification.message,
+            "recipient_type": notification.recipient_type,
+            "recipient_id": notification.recipient_id,
+            "salon_id": notification.salon_id,
+            "entity_type": notification.entity_type,
+            "entity_id": notification.entity_id,
+            "is_read": notification.is_read,
+            "created_at": notification.created_at.isoformat() if notification.created_at else None,
+            "extra_data": json.loads(notification.extra_data) if notification.extra_data else None
+        }
+        
+        # Send to appropriate SSE channel based on recipient type
+        try:
+            loop = asyncio.get_event_loop()
+            
+            if recipient_type == "salon":
+                # Send to all admins in the salon
+                loop.create_task(
+                    notification_manager.send_to_salon_admins(salon_id, notification_data)
+                )
+            elif recipient_type == "user":
+                # Send to specific admin user
+                loop.create_task(
+                    notification_manager.send_to_specific_admin(salon_id, recipient_id, notification_data)
+                )
+            elif recipient_type == "customer":
+                # Send to specific customer
+                loop.create_task(
+                    notification_manager.send_to_customer(recipient_id, notification_data)
+                )
+        except RuntimeError:
+            # No event loop running (e.g., in tests or sync context)
+            pass
         
         return notification
     
