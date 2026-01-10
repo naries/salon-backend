@@ -131,23 +131,36 @@ async def create_chat_customer(
 ):
     """
     Create a new chat conversation (Customer initiates with salon).
-    Customer must specify salon via user_id (any user in the salon).
+    Customer must specify salon_id. Optionally provide user_id for specific user.
     """
-    if not chat_data.user_id:
+    if not chat_data.salon_id:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail="user_id is required to identify the salon"
+            detail="salon_id is required to start a chat"
         )
     
-    # Get user and salon
-    user = db.query(User).filter(User.id == chat_data.user_id).first()
-    if not user or not user.salon_id:
+    # Verify salon exists
+    salon = db.query(Salon).filter(Salon.id == chat_data.salon_id).first()
+    if not salon:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
-            detail="User not found or not associated with a salon"
+            detail="Salon not found"
         )
     
-    salon_id = user.salon_id
+    salon_id = chat_data.salon_id
+    
+    # If user_id provided, verify user belongs to this salon
+    user = None
+    if chat_data.user_id:
+        user = db.query(User).filter(
+            User.id == chat_data.user_id,
+            User.salon_id == salon_id
+        ).first()
+        if not user:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="User not found or not associated with this salon"
+            )
     
     # Check if chat already exists
     existing_chat = db.query(Chat).join(ChatParticipant).filter(
@@ -171,18 +184,20 @@ async def create_chat_customer(
     db.flush()
     
     # Add participants
-    user_participant = ChatParticipant(
-        chat_id=chat.id,
-        participant_type=ParticipantType.USER,
-        user_id=user.id
-    )
+    # Add user participant only if specific user was requested
+    if user:
+        user_participant = ChatParticipant(
+            chat_id=chat.id,
+            participant_type=ParticipantType.USER,
+            user_id=user.id
+        )
+        db.add(user_participant)
+    
     customer_participant = ChatParticipant(
         chat_id=chat.id,
         participant_type=ParticipantType.CUSTOMER,
         customer_id=current_customer.id
     )
-    
-    db.add(user_participant)
     db.add(customer_participant)
     db.commit()
     db.refresh(chat)

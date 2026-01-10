@@ -40,7 +40,8 @@ class ParticipantTypeEnum(str, Enum):
 class ChatCreate(BaseModel):
     """Create a new chat conversation"""
     customer_id: Optional[int] = Field(None, description="Customer ID (required for user initiating)")
-    user_id: Optional[int] = Field(None, description="User ID (required for customer initiating)")
+    user_id: Optional[int] = Field(None, description="User ID (optional for customer initiating)")
+    salon_id: Optional[int] = Field(None, description="Salon ID (required for customer initiating)")
     title: Optional[str] = Field(None, max_length=255, description="Optional chat title")
     initial_message: Optional[str] = Field(None, description="First message to send")
 
