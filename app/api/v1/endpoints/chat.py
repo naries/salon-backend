@@ -243,6 +243,9 @@ async def list_chats(
         ChatParticipant.participant_type == ParticipantType.USER,
         Chat.is_archived == is_archived,
         Chat.is_active == True
+    ).options(
+        joinedload(Chat.participants).joinedload(ChatParticipant.user),
+        joinedload(Chat.participants).joinedload(ChatParticipant.customer)
     ).order_by(desc(Chat.last_message_at)).all()
     
     return [format_chat_list_item(chat, current_user.id, "user", db) for chat in chats]
@@ -259,8 +262,9 @@ async def list_chats_customer(
         ChatParticipant.customer_id == current_customer.id,
         ChatParticipant.participant_type == ParticipantType.CUSTOMER,
         Chat.is_archived == is_archived,
-        Chat.is_active == True
-    ).order_by(desc(Chat.last_message_at)).all()
+        Chat.is_active == True    ).options(
+        joinedload(Chat.participants).joinedload(ChatParticipant.user),
+        joinedload(Chat.participants).joinedload(ChatParticipant.customer)    ).order_by(desc(Chat.last_message_at)).all()
     
     return [format_chat_list_item(chat, current_customer.id, "customer", db) for chat in chats]
 
@@ -272,7 +276,10 @@ async def get_chat(
     current_user: User = Depends(get_current_admin_user)
 ):
     """Get detailed chat information"""
-    chat = db.query(Chat).filter(Chat.id == chat_id).first()
+    chat = db.query(Chat).options(
+        joinedload(Chat.participants).joinedload(ChatParticipant.user),
+        joinedload(Chat.participants).joinedload(ChatParticipant.customer)
+    ).filter(Chat.id == chat_id).first()
     if not chat:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
@@ -597,6 +604,9 @@ def get_chat_detail(chat: Chat, participant_id: int, participant_type: str, db: 
     # Get participants
     participants = db.query(ChatParticipant).filter(
         ChatParticipant.chat_id == chat.id
+    ).options(
+        joinedload(ChatParticipant.user),
+        joinedload(ChatParticipant.customer)
     ).all()
     
     # Get current user's participant record for unread count
@@ -659,6 +669,9 @@ def format_chat_list_item(chat: Chat, participant_id: int, participant_type: str
     # Get participants
     participants = db.query(ChatParticipant).filter(
         ChatParticipant.chat_id == chat.id
+    ).options(
+        joinedload(ChatParticipant.user),
+        joinedload(ChatParticipant.customer)
     ).all()
     
     current_participant = next(
@@ -689,9 +702,12 @@ def format_chat_list_item(chat: Chat, participant_id: int, participant_type: str
                 phone=p.customer.phone
             ))
     
-    # Get online participants
-    online = chat_manager.get_online_participants(chat.id)
-    online_ids = [p['participant_id'] for p in online]
+    # Get online participants with error handling
+    try:
+        online = chat_manager.get_online_participants(chat.id)
+        online_ids = [p['participant_id'] for p in online]
+    except Exception:
+        online_ids = []
     
     return ChatListItem(
         id=chat.id,

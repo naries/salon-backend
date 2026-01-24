@@ -164,9 +164,19 @@ async def websocket_chat_customer(
         await websocket.close(code=status.WS_1008_POLICY_VIOLATION)
         return
     
-    # Get salon_id from first chat (customers can chat with multiple salons)
-    # For now, we'll use a default or require it in query
-    salon_id = 1  # TODO: Make this dynamic based on customer's chats
+    # Get salon_id from customer's first active chat, or use a default
+    # Customers can chat with multiple salons, so we need to handle this dynamically
+    first_chat = db.query(Chat).join(ChatParticipant).filter(
+        ChatParticipant.customer_id == customer.id,
+        ChatParticipant.participant_type == "customer",
+        Chat.is_active == True
+    ).first()
+    
+    salon_id = first_chat.salon_id if first_chat else None
+    
+    if not salon_id:
+        # If no existing chats, we'll set salon_id when they join their first chat
+        salon_id = 1  # Temporary default
     
     # Connect to chat manager
     await chat_manager.connect(
